@@ -1,0 +1,41 @@
+#!/bin/bash
+# NSCool parameter scan
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage ./nscool-scan <directory>"
+  exit
+fi
+
+BASE_DIR=$1
+
+function run_nscool() {
+  # create directory
+  echo "------- Running at M = $1 ---------"
+  RUN_DIR=$BASE_DIR/run-$1
+  if [[ -x $RUN_DIR ]]; then
+    echo "Directory $RUN_DIR exists. Deleting."
+    rm -rf $RUN_DIR
+  fi
+  mkdir $RUN_DIR
+  cp -a $BASE_DIR/Cool_Try.in $RUN_DIR
+  cp -a $BASE_DIR/I.dat       $RUN_DIR
+
+  # adjust input file for current grid point
+  sed -i '' -e "s!%M%!$1!"           $RUN_DIR/Cool_Try.in
+  sed -i '' -e "s!Model_1!$RUN_DIR!" $RUN_DIR/Cool_Try.in
+
+  # run NSCool
+  echo \'$RUN_DIR/Cool_Try.in\' | ./NScool.out
+}
+
+# ------------------------------------------------------------------
+
+for M in 1.0 1.2 1.4 1.6 1.8 2.0; do
+  # run for regular (large-radius) branch of the mass-radius relation
+  run_nscool "M$MM" 
+
+  # run again for small-radius branch
+  run_nscool "smallR-M$MM" 
+done
+
+

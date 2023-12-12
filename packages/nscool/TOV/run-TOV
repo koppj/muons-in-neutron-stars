@@ -1,0 +1,77 @@
+#!/bin/bash
+
+if [[ $# < 2 ]]; then
+  echo "Usage ./run-TOV <EOS> <M> [output file suffix]"
+  exit
+fi
+
+# read command line parameters
+EOS=$1
+M=$2
+
+# if non-zero B0 chosen, set surface B-field to 1e15 Gaus
+#if (( $(echo | awk "{ print ($B0 > 0.) ? 1 : 0 }") )); then
+#  Bs=1e15
+#else
+#  Bs=0
+#fi
+
+# output file name - if extra suffix given on command line, use it
+if [[ $# > 2 ]]; then
+  OUTPUT_FILE="prof-$EOS-M$M-$4.dat"
+else
+  OUTPUT_FILE="prof-$EOS-M$M.dat"
+fi
+
+# determine name of EOS file
+if [[ $EOS = "APR" ]]; then
+  EOS_FILE="APR_EOS_Cat.dat"
+else
+  EOS_FILE=$EOS".dat"
+fi
+
+# remove old output
+rm -f Profile/prof-toby,dat
+
+# run!
+# the strategy is to run once with given rhoc to give the code an
+# idea what typical core densities are. Afterwards comes the optimization
+# towards the desired neutron star mass
+cat << EOF | ./TOV
+cgs
+eos='$EOS_FILE'
+geteos
+rhoc=0.2
+go
+rhoc=0.3
+go
+targetmass=$M
+go
+dump
+go
+EOF
+
+# rename output file
+mv Profile/prof-toby.dat Profile/$OUTPUT_FILE
+
+
+# run again with different starting point to access the small-radius branch
+# of the mass-radius relation
+OUTPUT_FILE="${OUTPUT_FILE/prof-$EOS/prof-$EOS-smallR}"
+cat << EOF | ./TOV
+cgs
+eos='$EOS_FILE'
+geteos
+rhoc=1.2
+go
+rhoc=1.3
+go
+targetmass=$M
+go
+dump
+go
+EOF
+
+# rename output file
+mv Profile/prof-toby.dat Profile/$OUTPUT_FILE
+
